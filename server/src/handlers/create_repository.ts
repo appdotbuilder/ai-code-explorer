@@ -1,17 +1,28 @@
-import { type CreateRepositoryInput, type Repository } from '../schema';
+import { db } from '../db';
+import { repositoriesTable } from '../db/schema';
+import { type CreateRepositoryInput, type Repository, createRepositoryInputSchema } from '../schema';
 
-export async function createRepository(input: CreateRepositoryInput): Promise<Repository> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new repository entry in the database
-    // and potentially triggering the initial analysis of the repository structure.
-    return Promise.resolve({
-        id: 1, // Placeholder ID
-        github_url: input.github_url,
-        name: input.name,
-        description: input.description || null,
-        owner: input.owner,
-        default_branch: input.default_branch,
-        last_analyzed: null,
-        created_at: new Date()
-    } as Repository);
-}
+export const createRepository = async (input: CreateRepositoryInput): Promise<Repository> => {
+  try {
+    // Parse input to apply Zod defaults
+    const parsedInput = createRepositoryInputSchema.parse(input);
+    
+    // Insert repository record
+    const result = await db.insert(repositoriesTable)
+      .values({
+        github_url: parsedInput.github_url,
+        name: parsedInput.name,
+        description: parsedInput.description || null,
+        owner: parsedInput.owner,
+        default_branch: parsedInput.default_branch
+      })
+      .returning()
+      .execute();
+
+    const repository = result[0];
+    return repository;
+  } catch (error) {
+    console.error('Repository creation failed:', error);
+    throw error;
+  }
+};

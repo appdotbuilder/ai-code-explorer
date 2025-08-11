@@ -1,22 +1,38 @@
+import { db } from '../db';
+import { repositoriesTable } from '../db/schema';
 import { type Repository } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function analyzeRepository(repositoryId: number): Promise<Repository> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is to trigger comprehensive repository analysis:
-    // 1. Fetch repository contents from GitHub API
-    // 2. Parse and store code files
-    // 3. Extract functions and dependencies
-    // 4. Run AI analysis on files
-    // 5. Identify potential issues
-    // 6. Update repository last_analyzed timestamp
-    return Promise.resolve({
-        id: repositoryId,
-        github_url: 'https://github.com/example/repo',
-        name: 'example-repo',
-        description: 'Example repository',
-        owner: 'example',
-        default_branch: 'main',
-        last_analyzed: new Date(),
-        created_at: new Date()
-    } as Repository);
-}
+export const analyzeRepository = async (repositoryId: number): Promise<Repository> => {
+  try {
+    // Check if repository exists first
+    const existingRepo = await db.select()
+      .from(repositoriesTable)
+      .where(eq(repositoriesTable.id, repositoryId))
+      .execute();
+
+    if (existingRepo.length === 0) {
+      throw new Error(`Repository with id ${repositoryId} not found`);
+    }
+
+    // Update the repository's last_analyzed timestamp
+    const result = await db.update(repositoriesTable)
+      .set({
+        last_analyzed: new Date()
+      })
+      .where(eq(repositoriesTable.id, repositoryId))
+      .returning()
+      .execute();
+
+    const repository = result[0];
+
+    // Convert numeric fields if any (none in this table, but following the pattern)
+    return {
+      ...repository,
+      // No numeric fields to convert in repositories table
+    };
+  } catch (error) {
+    console.error('Repository analysis failed:', error);
+    throw error;
+  }
+};

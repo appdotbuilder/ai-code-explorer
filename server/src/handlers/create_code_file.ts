@@ -1,19 +1,29 @@
+import { db } from '../db';
+import { codeFilesTable } from '../db/schema';
 import { type CreateCodeFileInput, type CodeFile } from '../schema';
 
-export async function createCodeFile(input: CreateCodeFileInput): Promise<CodeFile> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new code file entry in the database,
-    // typically called during repository analysis or when new files are detected.
-    return Promise.resolve({
-        id: 1, // Placeholder ID
+export const createCodeFile = async (input: CreateCodeFileInput): Promise<CodeFile> => {
+  try {
+    // Insert code file record
+    const result = await db.insert(codeFilesTable)
+      .values({
         repository_id: input.repository_id,
         path: input.path,
         content: input.content,
         language: input.language || null,
-        size: input.size,
-        ai_summary: null,
-        complexity_score: null,
-        last_updated: new Date(),
-        created_at: new Date()
-    } as CodeFile);
-}
+        size: input.size
+      })
+      .returning()
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    const codeFile = result[0];
+    return {
+      ...codeFile,
+      complexity_score: codeFile.complexity_score ? parseFloat(codeFile.complexity_score) : null
+    };
+  } catch (error) {
+    console.error('Code file creation failed:', error);
+    throw error;
+  }
+};
